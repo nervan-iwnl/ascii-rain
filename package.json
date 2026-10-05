@@ -1,6 +1,0 @@
-{
-  "name": "ascii-rain",
-  "private": true,
-  "scripts": { "build": "node build.cjs" },
-  "devDependencies": { "esbuild-wasm": "0.28.2" }
-}

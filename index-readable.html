@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+ <meta charset="utf-8"/>
+ <meta content="width=device-width,initial-scale=1" name="viewport"/>
+ <meta content="#0b1211" name="theme-color"/>
+ <link href="data:," rel="icon"/>
+ <title>
+  Пока идёт дождь
+ </title>
+ <style>
+  * {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #0b1211;
+  color: #b9c9b7;
+  font: 12px/1.5 "Courier New", monospace;
+  height: 100dvh;
+  overflow: hidden;
+}
+canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+}
+header {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  pointer-events: none;
+}
+h1 {
+  font-size: 13px;
+  letter-spacing: 3px;
+  font-weight: normal;
+  margin: 0 0 5px;
+}
+header p {
+  font-size: 10px;
+  color: #697b71;
+  margin: 0;
+}
+footer {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(490px, calc(100% - 28px));
+  background: #0b1211d9;
+  border-top: 1px solid #34443a;
+  padding: 9px 4px 0;
+}
+.row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+}
+.row + .row {
+  margin-top: 8px;
+}
+.station {
+  min-width: 0;
+  width: 150px;
+}
+select,
+button {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+select {
+  color: #a6b79f;
+  max-width: 100%;
+  padding: 2px 0;
+}
+option {
+  background: #14221c;
+}
+#caption {
+  display: block;
+  color: #728475;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+button {
+  color: #829583;
+  min-height: 28px;
+  padding: 2px 4px;
+}
+button:hover {
+  color: #d9e4cd;
+}
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 1px solid #adc19a;
+  outline-offset: 3px;
+}
+button[aria-pressed=true] {
+  color: #d8e6cd;
+}
+.play {
+  width: 28px;
+  min-width: 28px;
+  font-size: 14px;
+}
+.volume {
+  width: 96px;
+  flex-shrink: 0;
+}
+.volume label {
+  font-size: 9px;
+  color: #829386;
+  display: flex;
+  justify-content: space-between;
+}
+.volume output {
+  font-variant-numeric: tabular-nums;
+}
+input[type=range] {
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  display: block;
+  background:
+    linear-gradient(
+      to right,
+      #96ac85 var(--level),
+      #34443a var(--level));
+  cursor: pointer;
+  margin: 8px 0;
+}
+input[type=range]::-webkit-slider-thumb {
+  appearance: none;
+  width: 7px;
+  height: 10px;
+  background: #b4c5a4;
+}
+input[type=range]::-moz-range-thumb {
+  width: 7px;
+  height: 10px;
+  border: 0;
+  border-radius: 0;
+  background: #b4c5a4;
+}
+.segments {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.segments span {
+  color: #829386;
+  font-size: 10px;
+  margin-right: 6px;
+}
+.segments button {
+  font-size: 10px;
+  white-space: nowrap;
+}
+.segments button[aria-pressed=true] {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.freeze {
+  font-size: 14px;
+  width: 24px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.thought {
+  position: absolute;
+  left: 0;
+  top: 32%;
+  width: 100%;
+  text-align: center;
+  color: #8d9f8b;
+  font-size: 11px;
+  letter-spacing: 2px;
+  pointer-events: none;
+  opacity: 0;
+  animation: thought 50s infinite;
+}
+@keyframes thought {
+  0%, 2%, 28%, 100% {
+    opacity: 0;
+  }
+  8%, 20% {
+    opacity: .8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .thought {
+    animation: none;
+    opacity: .6;
+  }
+}
+ </style>
+ <canvas aria-label="Ночной лес из ASCII-символов: дождь падает, деревья качаются на ветру" role="img">
+ </canvas>
+ <header>
+  <h1>
+   ПОКА ИДЁТ ДОЖДЬ
+  </h1>
+  <p>
+   маленькое место, где можно остаться
+  </p>
+ </header>
+ <div class="thought">
+  никуда не нужно спешить
+ </div>
+ <footer aria-label="Музыка и погода">
+  <div class="row">
+   <button aria-label="Включить радио" aria-pressed="false" class="play" id="sound" title="Включить радио">
+    ▶
+   </button>
+   <div class="station">
+    <select aria-label="Радиостанция" id="station">
+     <option value="0">
+      Code Radio
+     </option>
+     <option value="1">
+      Groove Salad
+     </option>
+     <option value="2">
+      I Love Chillhop
+     </option>
+    </select>
+    <span id="caption" role="status">
+     лоуфай / джаз
+    </span>
+   </div>
+   <div class="volume">
+    <label for="musicVolume">
+     Музыка
+     <output for="musicVolume" id="musicValue">
+      40%
+     </output>
+    </label>
+    <input id="musicVolume" max="100" min="0" style="--level:40%" type="range" value="40"/>
+   </div>
+  </div>
+  <div class="row">
+   <div aria-label="Сила дождя" class="segments" role="group">
+    <span>
+     Сила дождя
+    </span>
+    <button aria-label="Выключить дождь" aria-pressed="false" data-sky="0">
+     0
+    </button>
+    <button aria-label="Тихий дождь" aria-pressed="true" data-sky="1">
+     1
+    </button>
+    <button aria-label="Сильный дождь" aria-pressed="false" data-sky="2">
+     2
+    </button>
+   </div>
+   <div class="volume">
+    <label for="rainVolume">
+     Шум дождя
+     <output for="rainVolume" id="rainValue">
+      60%
+     </output>
+    </label>
+    <input id="rainVolume" max="100" min="0" style="--level:60%" type="range" value="60"/>
+   </div>
+   <button aria-label="Пауза музыки и анимации" aria-pressed="false" class="freeze" id="pause" title="Пауза музыки и анимации">
+    Ⅱ
+   </button>
+  </div>
+ </footer>
+ <script>
+  const $ = (s) => document.querySelector(s), canvas = $("canvas"), ctx = canvas.getContext("2d"), sound = $("#sound"), pause = $("#pause");
+let w, h, cols, rows, cw = 8, ch = 14, t = 0, last = 0, mode = 0, wet = true, stopped = false, mediaPaused = false, pointer = 0, trees = [], drops = [];
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+stopped = reduced;
+pause.setAttribute("aria-pressed", stopped);
+pause.textContent = stopped ? "\u25B6" : "\u2161";
+pause.setAttribute("aria-label", stopped ? "\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043C\u0443\u0437\u044B\u043A\u0443 \u0438 \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044E" : "\u041F\u0430\u0443\u0437\u0430 \u043C\u0443\u0437\u044B\u043A\u0438 \u0438 \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438");
+function rand(n) {
+  return Math.random() * n;
+}
+function resize() {
+  w = innerWidth;
+  h = innerHeight;
+  const d = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = w * d;
+  canvas.height = h * d;
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+  cw = 8;
+  ch = 14;
+  cols = Math.ceil(w / cw);
+  rows = Math.ceil(h / ch);
+  ctx.font = `${ch - 2}px "Courier New",monospace`;
+  trees = [];
+  let seed = 73;
+  function r() {
+    seed = seed * 16807 % 2147483647;
+    return seed / 2147483647;
+  }
+  for (let layer = 0; layer < 3; layer++) {
+    let count = Math.ceil(cols / (layer === 2 ? 26 : 16));
+    for (let i = 0; i < count; i++) trees.push({ x: (i + 0.15 + r() * 0.65) * cols / count, y: rows * (0.67 + layer * 0.075), height: (8 + r() * 9) * (layer === 2 ? 1.2 : 0.8), phase: r() * 6.28, layer, shape: r() > 0.3 });
+  }
+  drops = Array.from({ length: Math.ceil(cols * rows * 0.045) }, () => ({ x: rand(cols), y: rand(rows), speed: 8 + rand(16), z: rand(1) }));
+  draw(0);
+}
+function glyph(c, x, y, color) {
+  if (x < 0 || x > cols || y < 0 || y > rows) return;
+  ctx.fillStyle = color;
+  ctx.fillText(c, Math.round(x) * cw, Math.round(y) * ch);
+}
+function draw(dt) {
+  ctx.fillStyle = "#0b1211";
+  ctx.fillRect(0, 0, w, h);
+  const storm = wet && mode;
+  const wind = (Math.sin(t * 0.37) * 0.8 + Math.sin(t * 0.91) * 0.25) * (storm ? 2.5 : 1) + pointer * 0.7 + (storm ? 1.8 : 0);
+  const mx = cols * 0.79, my = rows * 0.22;
+  [" .---. ", "/ . . \\", "| .   |", "\\   . /", " '---' "].forEach((s, i) => [...s].forEach((c, j) => glyph(c, mx + j, my + i, "#627466")));
+  for (let j = 0; j < cols; j += 3) {
+    const y = rows * 0.43 + Math.sin(j * 0.12) * 1.4;
+    glyph(j % 2 ? "_" : ".", j, y, "#1c2c26");
+  }
+  for (const tree of trees) {
+    const colors = ["#263e33", "#45654e", "#86a07b"], height = Math.floor(tree.height), base = tree.y;
+    for (let k = height; k >= 0; k--) {
+      const bend = (Math.sin(t * (storm ? 1.4 : 0.8) + tree.phase) * (storm ? 1.5 : 0.8) + wind) * Math.pow(k / height, 2) * (tree.layer + 1);
+      const x = tree.x + bend, y = base - k;
+      if (k < height * 0.26) {
+        glyph(k % 2 ? "|" : "H", x, y, colors[tree.layer]);
+        if (tree.layer === 2) glyph("|", x + 1, y, colors[tree.layer]);
+        continue;
+      }
+      const spread = tree.shape ? Math.max(0, (height - k) * 0.49) : Math.sin((k / height - 0.22) / 0.78 * Math.PI) * height * 0.29;
+      for (let j = -Math.floor(spread); j <= spread; j++) {
+        const hash = Math.abs((j * 31 + k * 17 + Math.floor(tree.phase * 10)) % 11);
+        glyph(j === -Math.floor(spread) ? "/" : j === Math.floor(spread) ? "\\" : hash < 3 ? "." : hash < 6 ? ":" : hash < 9 ? "*" : "^", x + j, y, colors[tree.layer]);
+      }
+    }
+    glyph("/", tree.x - 1, base + 1, colors[tree.layer]);
+    glyph("\\", tree.x + 2, base + 1, colors[tree.layer]);
+  }
+  for (let x = 0; x < cols; x++) {
+    const y = rows * 0.895 + Math.sin(x * 0.27) * 0.5;
+    glyph(x % 7 === 0 ? '"' : x % 3 === 0 ? "_" : ".", x, y, "#405440");
+    if (x % 9 === 0) glyph("~", x + Math.sin(t + x) * 2, y + 2, "#283c31");
+  }
+  if (wet) for (const d of drops) {
+    d.y += dt * d.speed * (mode ? 1.7 : 1);
+    d.x += dt * wind * (3 + d.z * 3);
+    if (d.y > rows * 0.9) {
+      if (d.z > 0.6) glyph(".", d.x, rows * 0.9, "#6b8278");
+      d.y = -rand(8);
+      d.x = rand(cols);
+    }
+    if (d.x > cols) d.x = 0;
+    if (d.x < 0) d.x = cols;
+    glyph(d.z > 0.75 ? wind > 0.6 ? "/" : "|" : ".", d.x, d.y, d.z > 0.75 ? "#50685e" : "#243b33");
+  }
+}
+function frame(now) {
+  const dt = Math.min((now - last) / 1e3, 0.06);
+  last = now;
+  if (!stopped) {
+    t += dt;
+    draw(dt);
+  }
+  requestAnimationFrame(frame);
+}
+addEventListener("resize", resize);
+canvas.addEventListener("pointermove", (e) => pointer = (e.clientX / w - 0.5) * 2);
+canvas.addEventListener("pointerleave", () => pointer = 0);
+pause.onclick = async () => {
+  mediaPaused = !mediaPaused;
+  stopped = mediaPaused;
+  pause.textContent = mediaPaused ? "\u25B6" : "\u2161";
+  pause.setAttribute("aria-label", mediaPaused ? "\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043C\u0443\u0437\u044B\u043A\u0443 \u0438 \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044E" : "\u041F\u0430\u0443\u0437\u0430 \u043C\u0443\u0437\u044B\u043A\u0438 \u0438 \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u0438");
+  pause.title = pause.getAttribute("aria-label");
+  pause.setAttribute("aria-pressed", mediaPaused);
+  rainVolumeUpdate();
+  if (radioAudio && radioPlaying) {
+    if (mediaPaused) radioAudio.pause();
+    else await playRadio();
+  }
+  radioState();
+  if (mediaPaused) caption.textContent = "\u043F\u0430\u0443\u0437\u0430";
+  else if (!radioPlaying) caption.textContent = "\u0432\u044B\u0431\u0435\u0440\u0438 \u0441\u0442\u0430\u043D\u0446\u0438\u044E \u0438 \u043D\u0430\u0436\u043C\u0438 \u25B6";
+};
+function updateRainLevel() {
+  if (rainGain) rainGain.gain.setTargetAtTime(wet ? mode ? 0.09 : 0.045 : 0, audio.currentTime, 0.6);
+}
+document.querySelectorAll("[data-sky]").forEach((b) => b.onclick = () => {
+  const n = Number(b.dataset.sky);
+  wet = n > 0;
+  mode = n === 2 ? 1 : 0;
+  document.querySelectorAll("[data-sky]").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  updateRainLevel();
+  setRain(wet);
+  if (stopped) draw(0);
+});
+let audio, master, rainGain, raining = false, radioAudio, radioPlaying = false, musicVolume = 0.4, rainVolume = 0.6;
+const caption = $("#caption");
+function idleCaption() {
+  return ["\u043B\u043E\u0443\u0444\u0430\u0439 / \u0434\u0436\u0430\u0437", "ambient / downtempo", "\u043B\u043E\u0443\u0444\u0430\u0439"][station.value];
+}
+function radioError() {
+  radioPlaying = false;
+  radioState();
+  caption.textContent = "\u0420\u0430\u0434\u0438\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u043E";
+}
+function rainVolumeUpdate(delay = 0.08) {
+  if (master) master.gain.setTargetAtTime(raining && !mediaPaused ? rainVolume * 1.5 : 0, audio.currentTime, delay);
+}
+async function playRadio() {
+  try {
+    if (!mediaPaused) await radioAudio.play();
+  } catch (e) {
+    if (!mediaPaused) radioError();
+  }
+}
+async function setRain(on) {
+  if (!on && !audio) {
+    raining = false;
+    return;
+  }
+  try {
+    if (!audio) {
+      audio = new (window.AudioContext || window.webkitAudioContext)();
+      master = audio.createGain();
+      master.gain.value = 0;
+      master.connect(audio.destination);
+      const buffer = audio.createBuffer(1, audio.sampleRate * 3, audio.sampleRate), data = buffer.getChannelData(0);
+      let brown = 0;
+      for (let i = 0; i < data.length; i++) {
+        brown = (brown + (Math.random() * 2 - 1) * 0.03) / 1.02;
+        data[i] = brown * 3;
+      }
+      const noise = audio.createBufferSource(), filter = audio.createBiquadFilter();
+      noise.buffer = buffer;
+      noise.loop = true;
+      filter.type = "lowpass";
+      filter.frequency.value = 1500;
+      rainGain = audio.createGain();
+      rainGain.gain.value = wet ? mode ? 0.09 : 0.045 : 0;
+      noise.connect(filter);
+      filter.connect(rainGain);
+      rainGain.connect(master);
+      noise.start();
+    }
+    await audio.resume();
+    raining = on;
+    rainVolumeUpdate(0.3);
+  } catch (e) {
+    caption.textContent = "\u0417\u0432\u0443\u043A \u0434\u043E\u0436\u0434\u044F \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D";
+    console.error(e);
+  }
+}
+const station = $("#station"), stations = [["Code Radio", "https://coderadio-admin-v2.freecodecamp.org/listen/coderadio/radio.mp3"], ["Groove Salad", "https://ice5.somafm.com/groovesalad-128-mp3"], ["I Love Chillhop", "https://play.ilovemusic.de/ilm_ilovechillhop/"]];
+station.onchange = async () => {
+  if (radioPlaying) {
+    radioAudio.src = stations[station.value][1];
+    caption.textContent = "\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u2026";
+    await playRadio();
+  } else caption.textContent = idleCaption();
+};
+function radioState() {
+  sound.setAttribute("aria-pressed", radioPlaying && !mediaPaused);
+  sound.textContent = radioPlaying && !mediaPaused ? "\u2161" : "\u25B6";
+  sound.setAttribute("aria-label", mediaPaused ? "\u041F\u0440\u043E\u0434\u043E\u043B\u0436\u0438\u0442\u044C \u043C\u0443\u0437\u044B\u043A\u0443 \u0438 \u0430\u043D\u0438\u043C\u0430\u0446\u0438\u044E" : radioPlaying ? "\u041E\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C \u0440\u0430\u0434\u0438\u043E" : "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0440\u0430\u0434\u0438\u043E");
+  sound.title = sound.getAttribute("aria-label");
+}
+sound.onclick = async () => {
+  if (mediaPaused) {
+    await pause.onclick();
+    if (radioPlaying) return;
+  }
+  if (radioPlaying) {
+    radioPlaying = false;
+    if (radioAudio) {
+      radioAudio.pause();
+      radioAudio.removeAttribute("src");
+      radioAudio.load();
+    }
+    radioState();
+    caption.textContent = idleCaption();
+    return;
+  }
+  if (!radioAudio) {
+    radioAudio = new Audio();
+    radioAudio.preload = "none";
+    radioAudio.volume = musicVolume;
+    radioAudio.addEventListener("playing", () => {
+      if (mediaPaused) {
+        radioAudio.pause();
+        return;
+      }
+      caption.textContent = "\u0438\u0433\u0440\u0430\u0435\u0442";
+    });
+    radioAudio.addEventListener("waiting", () => {
+      if (radioPlaying && !mediaPaused) caption.textContent = "\u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026";
+    });
+    radioAudio.addEventListener("error", () => {
+      if (radioPlaying) radioError();
+    });
+  }
+  radioPlaying = true;
+  radioState();
+  caption.textContent = "\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435\u2026";
+  radioAudio.src = stations[station.value][1];
+  setRain(wet);
+  await playRadio();
+};
+["music", "rain"].forEach((kind) => {
+  $("#" + kind + "Volume").oninput = (e) => {
+    const n = Number(e.target.value) / 100;
+    e.target.style.setProperty("--level", e.target.value + "%");
+    $("#" + kind + "Value").value = e.target.value + "%";
+    if (kind === "music") {
+      musicVolume = n;
+      if (radioAudio) radioAudio.volume = n;
+    } else {
+      rainVolume = n;
+      rainVolumeUpdate();
+    }
+  };
+});
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.altKey || e.metaKey || e.target.closest("input,select,textarea,[contenteditable=true]")) return;
+  if (e.code === "Space") {
+    e.preventDefault();
+    if (!e.repeat) pause.click();
+  } else if (e.code === "KeyM") {
+    e.preventDefault();
+    if (!e.repeat) sound.click();
+  } else if (/^(Digit|Numpad)[012]$/.test(e.code)) {
+    e.preventDefault();
+    $('[data-sky="' + e.code.slice(-1) + '"]').click();
+  } else if (e.code === "ArrowUp" || e.code === "ArrowDown") {
+    e.preventDefault();
+    const slider = $(e.shiftKey ? "#rainVolume" : "#musicVolume");
+    slider.value = Math.max(0, Math.min(100, Number(slider.value) + (e.code === "ArrowUp" ? 5 : -5)));
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+});
+resize();
+requestAnimationFrame(frame);
+ </script>
+</html>
