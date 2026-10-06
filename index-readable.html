@@ -444,7 +444,8 @@ async function setRain(on) {
       });
       updateRainLevel();
     }
-    await audio.resume();
+    // A blocked autoplay resume can stay pending; still load and decode rain.
+    audio.resume().catch(() => {});
     rainVolumeUpdate(0.3);
     if (on && wet && !rainReady[level]) {
       // CC0 forest field recordings: soft forest rain (Borgory),
@@ -570,5 +571,12 @@ document.addEventListener("keydown", (e) => {
 });
 resize();
 requestAnimationFrame(frame);
+// Try autoplay; ordinary interactions unlock audio when the browser requires it.
+function unlockRain() {
+  if (wet && !mediaPaused && (!audio || audio.state === "suspended")) setRain(true);
+}
+document.addEventListener("click", unlockRain);
+document.addEventListener("keydown", unlockRain);
+setRain(wet);
  </script>
 </html>
