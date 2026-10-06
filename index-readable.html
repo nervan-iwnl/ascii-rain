@@ -406,7 +406,7 @@ document.querySelectorAll("[data-sky]").forEach((b) => b.onclick = () => {
   setRain(wet);
   if (stopped) draw(0);
 });
-let audio, master, rainGain, rainLoad = [], rainReady = [false, false], raining = false, radioAudio, radioPlaying = false, musicVolume = 0.4, rainVolume = 0.6;
+let audio, master, rainGain, rainTracks = [], raining = false, radioAudio, radioPlaying = false, musicVolume = 0.4, rainVolume = 0.6;
 const caption = $("#caption");
 function idleCaption() {
   return ["\u043B\u043E\u0443\u0444\u0430\u0439 / \u0434\u0436\u0430\u0437", "ambient / downtempo", "\u043B\u043E\u0443\u0444\u0430\u0439"][station.value];
@@ -418,6 +418,13 @@ function radioError() {
 }
 function rainVolumeUpdate(delay = 0.08) {
   if (master) master.gain.setTargetAtTime(raining && !mediaPaused ? rainVolume * 1.5 : 0, audio.currentTime, delay);
+  rainTracks.forEach((track, level) => {
+    if (raining && wet && !mediaPaused && mode === level) {
+      if (track.paused) track.play().catch((e) => {
+        if (e.name !== "NotAllowedError" && e.name !== "AbortError" && raining && mode === level) caption.textContent = "Звук дождя недоступен";
+      });
+    } else track.pause();
+  });
 }
 async function playRadio() {
   try {
@@ -426,10 +433,9 @@ async function playRadio() {
     if (!mediaPaused) radioError();
   }
 }
-async function setRain(on) {
+function setRain(on) {
   raining = on;
   if (!on && !audio) return;
-  const level = mode;
   try {
     if (!audio) {
       audio = new (window.AudioContext || window.webkitAudioContext)();
@@ -444,41 +450,19 @@ async function setRain(on) {
       });
       updateRainLevel();
     }
-    // A blocked autoplay resume can stay pending; still load and decode rain.
     audio.resume().catch(() => {});
-    rainVolumeUpdate(0.3);
-    if (on && wet && !rainReady[level]) {
-      // CC0 forest field recordings: soft forest rain (Borgory),
-      // and rain across leaves and bushes (SamsterBirdies).
-      // Preserve their natural impact sounds without a lowpass filter.
-      if (!rainLoad[level]) rainLoad[level] = (async () => {
-        const clips = ["forest", "canopy"];
-        const response = await fetch("assets/rain-" + clips[level] + ".mp3");
-        if (!response.ok) throw new Error("Rain recording: " + response.status);
-        const recording = await audio.decodeAudioData(await response.arrayBuffer());
-        const fade = Math.min(Math.floor(recording.sampleRate * 0.8), Math.floor(recording.length / 4));
-        const buffer = audio.createBuffer(recording.numberOfChannels, recording.length - fade, recording.sampleRate);
-        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
-          const source = recording.getChannelData(channel), data = buffer.getChannelData(channel);
-          data.set(source.subarray(fade));
-          for (let i = 0; i < fade; i++) {
-            const mix = i / (fade - 1), end = data.length - fade + i;
-            data[end] = data[end] * (1 - mix) + source[i] * mix;
-          }
-        }
-        const rain = audio.createBufferSource();
-        rain.buffer = buffer;
-        rain.loop = true;
-        rain.connect(rainGain[level]);
-        rain.start();
-        rainReady[level] = true;
-      })();
-      await rainLoad[level];
+    if (on && wet && !rainTracks[mode]) {
+      // Stream CC0 forest recordings; the first frames can play before download ends.
+      const track = new Audio();
+      track.preload = "auto";
+      track.loop = true;
+      track.src = "assets/rain-" + ["forest", "canopy"][mode] + ".mp3?v=2";
+      audio.createMediaElementSource(track).connect(rainGain[mode]);
+      rainTracks[mode] = track;
     }
     rainVolumeUpdate(0.3);
   } catch (e) {
-    rainLoad[level] = null;
-    if (wet && mode === level) caption.textContent = "Звук дождя недоступен";
+    if (wet) caption.textContent = "Звук дождя недоступен";
     console.error(e);
   }
 }
@@ -573,7 +557,7 @@ resize();
 requestAnimationFrame(frame);
 // Try autoplay; ordinary interactions unlock audio when the browser requires it.
 function unlockRain() {
-  if (wet && !mediaPaused && (!audio || audio.state === "suspended")) setRain(true);
+  if (wet && !mediaPaused && (!audio || audio.state === "suspended" || !rainTracks[mode] || rainTracks[mode].paused)) setRain(true);
 }
 document.addEventListener("click", unlockRain);
 document.addEventListener("keydown", unlockRain);
