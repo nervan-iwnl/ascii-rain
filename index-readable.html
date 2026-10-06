@@ -395,7 +395,7 @@ pause.onclick = async () => {
   else if (!radioPlaying) caption.textContent = "\u0432\u044B\u0431\u0435\u0440\u0438 \u0441\u0442\u0430\u043D\u0446\u0438\u044E \u0438 \u043D\u0430\u0436\u043C\u0438 \u25B6";
 };
 function updateRainLevel() {
-  if (rainGain) rainGain.gain.setTargetAtTime(wet ? mode ? 0.09 : 0.045 : 0, audio.currentTime, 0.6);
+  if (rainGain) rainGain.forEach((gain, level) => gain.gain.setTargetAtTime(wet && mode === level ? level ? 1.1 : 0.5 : 0, audio.currentTime, 0.6));
 }
 document.querySelectorAll("[data-sky]").forEach((b) => b.onclick = () => {
   const n = Number(b.dataset.sky);
@@ -406,7 +406,7 @@ document.querySelectorAll("[data-sky]").forEach((b) => b.onclick = () => {
   setRain(wet);
   if (stopped) draw(0);
 });
-let audio, master, rainGain, raining = false, radioAudio, radioPlaying = false, musicVolume = 0.4, rainVolume = 0.6;
+let audio, master, rainGain, rainLoad = [], rainReady = [false, false], raining = false, radioAudio, radioPlaying = false, musicVolume = 0.4, rainVolume = 0.6;
 const caption = $("#caption");
 function idleCaption() {
   return ["\u043B\u043E\u0443\u0444\u0430\u0439 / \u0434\u0436\u0430\u0437", "ambient / downtempo", "\u043B\u043E\u0443\u0444\u0430\u0439"][station.value];
@@ -427,39 +427,57 @@ async function playRadio() {
   }
 }
 async function setRain(on) {
-  if (!on && !audio) {
-    raining = false;
-    return;
-  }
+  raining = on;
+  if (!on && !audio) return;
+  const level = mode;
   try {
     if (!audio) {
       audio = new (window.AudioContext || window.webkitAudioContext)();
       master = audio.createGain();
       master.gain.value = 0;
       master.connect(audio.destination);
-      const buffer = audio.createBuffer(1, audio.sampleRate * 3, audio.sampleRate), data = buffer.getChannelData(0);
-      let brown = 0;
-      for (let i = 0; i < data.length; i++) {
-        brown = (brown + (Math.random() * 2 - 1) * 0.03) / 1.02;
-        data[i] = brown * 3;
-      }
-      const noise = audio.createBufferSource(), filter = audio.createBiquadFilter();
-      noise.buffer = buffer;
-      noise.loop = true;
-      filter.type = "lowpass";
-      filter.frequency.value = 1500;
-      rainGain = audio.createGain();
-      rainGain.gain.value = wet ? mode ? 0.09 : 0.045 : 0;
-      noise.connect(filter);
-      filter.connect(rainGain);
-      rainGain.connect(master);
-      noise.start();
+      rainGain = [0, 1].map(() => {
+        const gain = audio.createGain();
+        gain.gain.value = 0;
+        gain.connect(master);
+        return gain;
+      });
+      updateRainLevel();
     }
     await audio.resume();
-    raining = on;
+    rainVolumeUpdate(0.3);
+    if (on && wet && !rainReady[level]) {
+      // CC0 forest field recordings: soft forest rain (Borgory),
+      // and rain across leaves and bushes (SamsterBirdies).
+      // Preserve their natural impact sounds without a lowpass filter.
+      if (!rainLoad[level]) rainLoad[level] = (async () => {
+        const clips = ["forest", "canopy"];
+        const response = await fetch("assets/rain-" + clips[level] + ".mp3");
+        if (!response.ok) throw new Error("Rain recording: " + response.status);
+        const recording = await audio.decodeAudioData(await response.arrayBuffer());
+        const fade = Math.min(Math.floor(recording.sampleRate * 0.8), Math.floor(recording.length / 4));
+        const buffer = audio.createBuffer(recording.numberOfChannels, recording.length - fade, recording.sampleRate);
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+          const source = recording.getChannelData(channel), data = buffer.getChannelData(channel);
+          data.set(source.subarray(fade));
+          for (let i = 0; i < fade; i++) {
+            const mix = i / (fade - 1), end = data.length - fade + i;
+            data[end] = data[end] * (1 - mix) + source[i] * mix;
+          }
+        }
+        const rain = audio.createBufferSource();
+        rain.buffer = buffer;
+        rain.loop = true;
+        rain.connect(rainGain[level]);
+        rain.start();
+        rainReady[level] = true;
+      })();
+      await rainLoad[level];
+    }
     rainVolumeUpdate(0.3);
   } catch (e) {
-    caption.textContent = "\u0417\u0432\u0443\u043A \u0434\u043E\u0436\u0434\u044F \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D";
+    rainLoad[level] = null;
+    if (wet && mode === level) caption.textContent = "Звук дождя недоступен";
     console.error(e);
   }
 }
